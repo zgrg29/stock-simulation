@@ -129,6 +129,10 @@ if run_button:
         best_idx = np.argmax(final_returns)
         worst_idx = np.argmin(final_returns)
         
+        # Calculate global min and max returns across all agents and all time steps for fixed histogram X-axis
+        global_min_ret = float(np.min(returns_history))
+        global_max_ret = float(np.max(returns_history))
+        
         st.success(f"模拟完成！共模拟了 {num_agents} 位散户在 {n_days} 个交易日内的表现。")
         
         # --- Chart 1: Main Stock & Agent Performance ---
@@ -193,9 +197,9 @@ if run_button:
         
         st.plotly_chart(fig1, use_container_width=True)
         
-        # --- Chart 2: Histogram with Time Slider ---
+        # --- Chart 2: Histogram with Time Slider & Fixed Global X-Axis ---
         st.subheader("📉 散户收益率分布动态直方图 (时间 Slider)")
-        st.markdown("拖动下方滑块，查看在不同交易日时，散户收益率分布的形态变化（默认展示最后一天）。")
+        st.markdown(f"**全局收益率范围锁定：** `{global_min_ret:.1f}%` 至 `+{global_max_ret:.1f}%`（1% 每柱，默认展示最后一天）。")
         
         step_size = max(1, n_days // 60)
         frame_indices = list(range(0, n_days, step_size))
@@ -210,7 +214,7 @@ if run_button:
         
         fig2.add_trace(go.Histogram(
             x=last_rets,
-            xbins=dict(size=1.0), # 1% per bin
+            xbins=dict(start=global_min_ret - 2, end=global_max_ret + 2, size=1.0),
             marker_color='royalblue',
             opacity=0.75
         ))
@@ -220,14 +224,16 @@ if run_button:
             rets_t = returns_history[t_idx]
             current_date_str = dates[t_idx].strftime('%Y-%m-%d')
             frames.append(go.Frame(
-                data=[go.Histogram(x=rets_t, xbins=dict(size=1.0))],
+                data=[go.Histogram(x=rets_t, xbins=dict(start=global_min_ret - 2, end=global_max_ret + 2, size=1.0))],
                 name=str(t_idx),
-                layout=dict(title_text=f"日期: {current_date_str} (交易日 {t_idx+1}/{n_days})")
+                layout=dict(
+                    title_text=f"日期: {current_date_str} (交易日 {t_idx+1}/{n_days})",
+                    xaxis=dict(range=[global_min_ret - 2, global_max_ret + 2])
+                )
             ))
             
         fig2.frames = frames
         
-        # Find which step corresponds to the last day for active index
         active_step_idx = len(frame_indices) - 1
         
         sliders = [{
@@ -258,6 +264,7 @@ if run_button:
             title=f"日期: {dates[last_t_idx].strftime('%Y-%m-%d')} (交易日 {n_days}/{n_days})",
             xaxis_title="收益率 (%)",
             yaxis_title="散户人数",
+            xaxis=dict(range=[global_min_ret - 2, global_max_ret + 2]),
             sliders=sliders,
             template="plotly_white",
             height=500

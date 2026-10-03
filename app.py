@@ -124,7 +124,6 @@ if run_button:
             portfolio_history[t] = cash + shares * p
             
         # Calculate true percentage return relative to net capital invested at each point in time
-        # This ensures everyone starts exactly at 0% on day 1
         returns_history = ((portfolio_history - net_invested_history) / net_invested_history) * 100.0
         
         final_returns = returns_history[-1]
@@ -138,12 +137,12 @@ if run_button:
         
         fig1 = go.Figure()
         
-        # 1. Background / Remaining agents area representation
+        # 1. Background / Remaining agents area representation (Green if final >= 0, Red if final < 0)
         for i in range(num_agents):
             if i == best_idx or i == worst_idx:
                 continue
             ret = final_returns[i]
-            color = 'rgba(0, 200, 0, 0.15)' if ret >= 0 else 'rgba(255, 0, 0, 0.15)'
+            color = 'rgba(0, 230, 118, 0.2)' if ret >= 0 else 'rgba(255, 23, 68, 0.2)'
             fig1.add_trace(go.Scatter(
                 x=dates,
                 y=returns_history[:, i],
@@ -153,22 +152,22 @@ if run_button:
                 hoverinfo='skip'
             ))
             
-        # 2. Worst Agent
+        # 2. Worst Agent (Brighter Red)
         fig1.add_trace(go.Scatter(
             x=dates,
             y=returns_history[:, worst_idx],
             mode='lines',
             name=f'最差散户 (#{worst_idx+1}: {final_returns[worst_idx]:.2f}%)',
-            line=dict(width=3, color='darkred')
+            line=dict(width=3.5, color='#FF1744') # Bright vibrant red
         ))
         
-        # 3. Best Agent
+        # 3. Best Agent (Brighter Green)
         fig1.add_trace(go.Scatter(
             x=dates,
             y=returns_history[:, best_idx],
             mode='lines',
             name=f'最好散户 (#{best_idx+1}: +{final_returns[best_idx]:.2f}%)',
-            line=dict(width=3, color='darkgreen')
+            line=dict(width=3.5, color='#00E676') # Bright vibrant green
         ))
         
         # 4. Benchmark Stock Return

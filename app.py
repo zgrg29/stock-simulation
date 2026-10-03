@@ -97,7 +97,6 @@ if run_button:
             if t > 0:
                 cash += daily_cash
                 
-            # Track cumulative net capital invested per agent (Initial Cash + Cumulative Daily Cash)
             net_invested = initial_cash + t * daily_cash
             net_invested_history[t] = net_invested
                 
@@ -120,10 +119,10 @@ if run_button:
                 shares[selling_mask] -= sell_shares
                 cash[selling_mask] += sell_shares * p
                 
-            # Record total portfolio value (Cash + Shares * Price)
+            # Record total portfolio value
             portfolio_history[t] = cash + shares * p
             
-        # Calculate true percentage return relative to net capital invested at each point in time
+        # Calculate true percentage return
         returns_history = ((portfolio_history - net_invested_history) / net_invested_history) * 100.0
         
         final_returns = returns_history[-1]
@@ -137,7 +136,6 @@ if run_button:
         
         fig1 = go.Figure()
         
-        # 1. Background / Remaining agents area representation (Green if final >= 0, Red if final < 0)
         for i in range(num_agents):
             if i == best_idx or i == worst_idx:
                 continue
@@ -152,25 +150,22 @@ if run_button:
                 hoverinfo='skip'
             ))
             
-        # 2. Worst Agent (Brighter Red)
         fig1.add_trace(go.Scatter(
             x=dates,
             y=returns_history[:, worst_idx],
             mode='lines',
             name=f'最差散户 (#{worst_idx+1}: {final_returns[worst_idx]:.2f}%)',
-            line=dict(width=3.5, color='#FF1744') # Bright vibrant red
+            line=dict(width=3.5, color='#FF1744')
         ))
         
-        # 3. Best Agent (Brighter Green)
         fig1.add_trace(go.Scatter(
             x=dates,
             y=returns_history[:, best_idx],
             mode='lines',
             name=f'最好散户 (#{best_idx+1}: +{final_returns[best_idx]:.2f}%)',
-            line=dict(width=3.5, color='#00E676') # Bright vibrant green
+            line=dict(width=3.5, color='#00E676')
         ))
         
-        # 4. Benchmark Stock Return
         fig1.add_trace(go.Scatter(
             x=dates,
             y=benchmark_returns,
@@ -200,7 +195,7 @@ if run_button:
         
         # --- Chart 2: Histogram with Time Slider ---
         st.subheader("📉 散户收益率分布动态直方图 (时间 Slider)")
-        st.markdown("拖动下方滑块，查看在不同交易日时，散户收益率分布的形态变化。")
+        st.markdown("拖动下方滑块，查看在不同交易日时，散户收益率分布的形态变化（默认展示最后一天）。")
         
         step_size = max(1, n_days // 60)
         frame_indices = list(range(0, n_days, step_size))
@@ -209,12 +204,13 @@ if run_button:
             
         fig2 = go.Figure()
         
-        initial_t_idx = frame_indices[0]
-        init_rets = returns_history[initial_t_idx]
+        # Default display: Last day (n_days - 1)
+        last_t_idx = n_days - 1
+        last_rets = returns_history[last_t_idx]
         
         fig2.add_trace(go.Histogram(
-            x=init_rets,
-            xbins=dict(start=int(np.min(returns_history))-10, end=int(np.max(returns_history))+10, size=5),
+            x=last_rets,
+            xbins=dict(size=1.0), # 1% per bin
             marker_color='royalblue',
             opacity=0.75
         ))
@@ -224,15 +220,18 @@ if run_button:
             rets_t = returns_history[t_idx]
             current_date_str = dates[t_idx].strftime('%Y-%m-%d')
             frames.append(go.Frame(
-                data=[go.Histogram(x=rets_t)],
+                data=[go.Histogram(x=rets_t, xbins=dict(size=1.0))],
                 name=str(t_idx),
                 layout=dict(title_text=f"日期: {current_date_str} (交易日 {t_idx+1}/{n_days})")
             ))
             
         fig2.frames = frames
         
+        # Find which step corresponds to the last day for active index
+        active_step_idx = len(frame_indices) - 1
+        
         sliders = [{
-            "active": 0,
+            "active": active_step_idx,
             "yanchor": "top",
             "xanchor": "left",
             "currentvalue": {
@@ -256,7 +255,7 @@ if run_button:
         }]
         
         fig2.update_layout(
-            title=f"日期: {dates[initial_t_idx].strftime('%Y-%m-%d')} (交易日 1/{n_days})",
+            title=f"日期: {dates[last_t_idx].strftime('%Y-%m-%d')} (交易日 {n_days}/{n_days})",
             xaxis_title="收益率 (%)",
             yaxis_title="散户人数",
             sliders=sliders,

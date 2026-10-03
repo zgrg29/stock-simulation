@@ -24,7 +24,7 @@ end_date = st.sidebar.date_input("结束日期", value=default_end)
 
 num_agents = st.sidebar.slider("随机散户人数", min_value=10, max_value=500, value=100, step=10)
 initial_cash = st.sidebar.number_input("每人初始现金 ($)", min_value=0.0, value=10000.0, step=1000.0)
-daily_cash = st.sidebar.number_input("每日现金进账 ($)", min_value=0.0, value=100.0, step=10.0)
+daily_cash = st.sidebar.number_input("每日现金进账 ($)", min_value=0.0, value=0.0, step=10.0)
 
 st.sidebar.subheader("交易行为概率设置")
 prob_buy = st.sidebar.slider("每日买入概率 (%)", min_value=0.0, max_value=100.0, value=25.0, step=1.0)

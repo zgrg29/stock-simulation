@@ -125,8 +125,6 @@ if run_button:
             portfolio_history[t] = cash + shares * p
             
         # Calculate total initial investment equivalent or total asset return
-        # Let's compute percentage return relative to initial portfolio value per agent
-        # Initial portfolio value = initial_cash per agent
         initial_portfolio_values = np.full(num_agents, initial_cash)
         returns_history = (portfolio_history / initial_portfolio_values[None, :] - 1.0) * 100.0
         
@@ -141,12 +139,7 @@ if run_button:
         
         fig1 = go.Figure()
         
-        # 1. Background / Remaining agents area representation using percentiles or individual traces with low opacity
-        # To make it clean and represent "remaining agents using area and color depth based on return",
-        # we can plot percentiles or individual light traces. Let's plot individual agent traces with red/green based on final return, or percentiles band.
-        # User requested: "剩余的人用面积和颜色深浅来代表。收益率高于0%的用绿色，低于0%的用红色。"
-        # A great way in Plotly is to plot all non-best/worst agents with low opacity lines, colored by final return.
-        
+        # 1. Background / Remaining agents area representation
         for i in range(num_agents):
             if i == best_idx or i == worst_idx:
                 continue
@@ -188,13 +181,22 @@ if run_button:
             line=dict(width=2.5, color='dodgerblue', dash='dash')
         ))
         
+        # Move legend to the bottom and give extra bottom margin so it doesn't overlap the axis
         fig1.update_layout(
             title=f"散户收益率群像对比 vs {ticker} 走势",
             xaxis_title="日期",
             yaxis_title="总资产收益率 (%)",
             hovermode="x unified",
             template="plotly_white",
-            height=600
+            height=650,
+            legend=dict(
+                orientation="h",
+                yanchor="top",
+                y=-0.2,
+                xanchor="center",
+                x=0.5
+            ),
+            margin=dict(b=100)
         )
         
         st.plotly_chart(fig1, use_container_width=True)
@@ -203,16 +205,13 @@ if run_button:
         st.subheader("📉 散户收益率分布动态直方图 (时间 Slider)")
         st.markdown("拖动下方滑块，查看在不同交易日时，散户收益率分布的形态变化。")
         
-        # Create frames for slider
-        # To avoid heavy payload, we can sample frames or create frames for all days (or every N days if n_days is large, e.g. every 5 days)
-        step_size = max(1, n_days // 60) # roughly 60 frames max for smooth performance
+        step_size = max(1, n_days // 60)
         frame_indices = list(range(0, n_days, step_size))
         if (n_days - 1) not in frame_indices:
             frame_indices.append(n_days - 1)
             
         fig2 = go.Figure()
         
-        # Initial frame data (day 0)
         initial_t_idx = frame_indices[0]
         init_rets = returns_history[initial_t_idx]
         
@@ -235,7 +234,6 @@ if run_button:
             
         fig2.frames = frames
         
-        # Slider setup
         sliders = [{
             "active": 0,
             "yanchor": "top",

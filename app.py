@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="股票随机散户模拟器", layout="wide")
 
 st.title("📈 股票随机散户行为模拟器")
-st.markdown("模拟在真实历史行情下，带有每日现金流和概率买卖行为的散户群体资产分化与演变过程。")
+st.markdown("模拟在真实历史行情下，带有每日现金流和概率买卖行为的散户群体资产分化与演变过程（收益率以起始点0%计）。")
 
 # Sidebar inputs
 st.sidebar.header("⚙️ 模拟参数设置")
@@ -47,7 +47,6 @@ def load_data(tk, start, end):
     df = yf.download(tk, start=start, end=end, progress=False)
     if df.empty:
         return None
-    # Handle multi-index columns if yfinance returns them
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     return df
@@ -80,25 +79,27 @@ if run_button:
         shares = np.zeros(num_agents)
         
         portfolio_history = np.zeros((n_days, num_agents))
+        net_invested_history = np.zeros((n_days, num_agents))
         
         np.random.seed(42) # Reproducible randomness per run configuration
         
-        # Pre-generate random actions and trade proportions for speed
-        # Actions: 0 = Hold, 1 = Buy, 2 = Sell
         actions_rand = np.random.uniform(0, 100, size=(n_days, num_agents))
         buy_threshold = prob_buy
         sell_threshold = prob_buy + prob_sell
         
-        # Trade proportions from normal distribution
         trade_proportions = np.random.normal(trade_size_mean / 100.0, trade_size_std / 100.0, size=(n_days, num_agents))
         trade_proportions = np.clip(trade_proportions, 0.05, 1.0)
         
         for t in range(n_days):
             p = stock_values[t]
             
-            # Daily cash inflow
+            # Daily cash inflow starting from t > 0
             if t > 0:
                 cash += daily_cash
+                
+            # Track cumulative net capital invested per agent (Initial Cash + Cumulative Daily Cash)
+            net_invested = initial_cash + t * daily_cash
+            net_invested_history[t] = net_invested
                 
             # Execute actions
             act_t = actions_rand[t]
@@ -107,7 +108,6 @@ if run_button:
             # Buy actions
             buying_mask = act_t < buy_threshold
             if np.any(buying_mask):
-                # Spend proportion of available cash
                 spend_cash = cash[buying_mask] * prop_t[buying_mask]
                 can_buy_shares = spend_cash / p
                 cash[buying_mask] -= spend_cash
@@ -116,7 +116,6 @@ if run_button:
             # Sell actions
             selling_mask = (act_t >= buy_threshold) & (act_t < sell_threshold)
             if np.any(selling_mask):
-                # Sell proportion of held shares
                 sell_shares = shares[selling_mask] * prop_t[selling_mask]
                 shares[selling_mask] -= sell_shares
                 cash[selling_mask] += sell_shares * p
@@ -124,9 +123,9 @@ if run_button:
             # Record total portfolio value (Cash + Shares * Price)
             portfolio_history[t] = cash + shares * p
             
-        # Calculate total initial investment equivalent or total asset return
-        initial_portfolio_values = np.full(num_agents, initial_cash)
-        returns_history = (portfolio_history / initial_portfolio_values[None, :] - 1.0) * 100.0
+        # Calculate true percentage return relative to net capital invested at each point in time
+        # This ensures everyone starts exactly at 0% on day 1
+        returns_history = ((portfolio_history - net_invested_history) / net_invested_history) * 100.0
         
         final_returns = returns_history[-1]
         best_idx = np.argmax(final_returns)
@@ -135,7 +134,7 @@ if run_button:
         st.success(f"模拟完成！共模拟了 {num_agents} 位散户在 {n_days} 个交易日内的表现。")
         
         # --- Chart 1: Main Stock & Agent Performance ---
-        st.subheader(f"📊 {ticker} 走势与散户群体资产演变")
+        st.subheader(f"📊 {ticker} 走势与散户群体收益率演变")
         
         fig1 = go.Figure()
         
@@ -181,11 +180,10 @@ if run_button:
             line=dict(width=2.5, color='dodgerblue', dash='dash')
         ))
         
-        # Move legend to the bottom and give extra bottom margin so it doesn't overlap the axis
         fig1.update_layout(
-            title=f"散户收益率群像对比 vs {ticker} 走势",
+            title=f"散户收益率群像对比 vs {ticker} 涨跌幅",
             xaxis_title="日期",
-            yaxis_title="总资产收益率 (%)",
+            yaxis_title="收益率 (%)",
             hovermode="x unified",
             template="plotly_white",
             height=650,
@@ -217,7 +215,7 @@ if run_button:
         
         fig2.add_trace(go.Histogram(
             x=init_rets,
-            xbins=dict(start=-50, end=max(200, int(np.max(returns_history))+50), size=5),
+            xbins=dict(start=int(np.min(returns_history))-10, end=int(np.max(returns_history))+10, size=5),
             marker_color='royalblue',
             opacity=0.75
         ))
